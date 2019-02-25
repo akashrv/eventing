@@ -20,7 +20,6 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	eventingduck "github.com/knative/eventing/pkg/apis/duck/v1alpha1"
 	"github.com/knative/pkg/apis"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -28,82 +27,39 @@ import (
 
 var dnsName = "example.com"
 
+// pkg/webhook/validators/channel_validator_test.go covers all test cases exhaustively. Hence just testing integration with a mock Validator
 func TestChannelValidation(t *testing.T) {
-	tests := []CRDTest{{
-		name: "valid",
-		cr: &Channel{
-			Spec: ChannelSpec{
-				Provisioner: &corev1.ObjectReference{
-					Name: "foo",
-				},
-			},
-		},
-		want: nil,
-	}, {
-		name: "empty",
-		cr: &Channel{
-			Spec: ChannelSpec{},
-		},
-		want: apis.ErrMissingField("spec.provisioner"),
-	}, {
-		name: "subscribers array",
-		cr: &Channel{
-			Spec: ChannelSpec{
-				Provisioner: &corev1.ObjectReference{
-					Name: "foo",
-				},
-				Subscribable: &eventingduck.Subscribable{
-					Subscribers: []eventingduck.ChannelSubscriberSpec{{
-						SubscriberURI: "subscriberendpoint",
-						ReplyURI:      "resultendpoint",
-					}},
-				}},
-		},
-		want: nil,
-	}, {
-		name: "empty subscriber at index 1",
-		cr: &Channel{
-			Spec: ChannelSpec{
-				Provisioner: &corev1.ObjectReference{
-					Name: "foo",
-				},
-				Subscribable: &eventingduck.Subscribable{
-					Subscribers: []eventingduck.ChannelSubscriberSpec{{
-						SubscriberURI: "subscriberendpoint",
-						ReplyURI:      "replyendpoint",
-					}, {}},
-				}},
-		},
-		want: func() *apis.FieldError {
-			fe := apis.ErrMissingField("spec.subscribable.subscriber[1].replyURI", "spec.subscribable.subscriber[1].subscriberURI")
-			fe.Details = "expected at least one of, got none"
-			return fe
-		}(),
-	}, {
-		name: "2 empty subscribers",
-		cr: &Channel{
-			Spec: ChannelSpec{
-				Provisioner: &corev1.ObjectReference{
-					Name: "foo",
-				},
-				Subscribable: &eventingduck.Subscribable{
-					Subscribers: []eventingduck.ChannelSubscriberSpec{{}, {}},
-				},
-			},
-		},
-		want: func() *apis.FieldError {
-			var errs *apis.FieldError
-			fe := apis.ErrMissingField("spec.subscribable.subscriber[0].replyURI", "spec.subscribable.subscriber[0].subscriberURI")
-			fe.Details = "expected at least one of, got none"
-			errs = errs.Also(fe)
-			fe = apis.ErrMissingField("spec.subscribable.subscriber[1].replyURI", "spec.subscribable.subscriber[1].subscriberURI")
-			fe.Details = "expected at least one of, got none"
-			errs = errs.Also(fe)
-			return errs
-		}(),
-	}}
 
-	doValidateTest(t, tests)
+	channel := Channel{}
+	tests := []struct {
+		name                      string
+		setGlobalChannelValidator bool
+		expected                  *apis.FieldError
+	}{
+		{
+			name:                      "GlobalChannelValidator not set",
+			setGlobalChannelValidator: false,
+			expected:                  nil,
+		},
+		{
+			name:                      "Test MockValidator",
+			setGlobalChannelValidator: true,
+			expected:                  &apis.FieldError{Message: "Test Error"},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.setGlobalChannelValidator {
+				GlobalChannelValidator = &MockValidator{}
+			} else {
+				GlobalChannelValidator = nil
+			}
+			actual := channel.Validate()
+			if diff := cmp.Diff(tc.expected.Error(), actual.Error()); diff != "" {
+				t.Errorf("%s: validate (-want, +got) = %v", tc.name, diff)
+			}
+		})
+	}
 }
 
 func TestChannelImmutableFields(t *testing.T) {
@@ -206,4 +162,11 @@ func TestChannelImmutableFields(t *testing.T) {
 			}
 		})
 	}
+}
+
+type MockValidator struct {
+}
+
+func (mv *MockValidator) Validate(c *Channel) *apis.FieldError {
+	return &apis.FieldError{Message: "Test Error"}
 }

@@ -17,34 +17,26 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"fmt"
-
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/knative/pkg/apis"
 )
 
-func (c *Channel) Validate() *apis.FieldError {
-	return c.Spec.Validate().ViaField("spec")
+type ChannelValidator interface {
+	Validate(c *Channel) *apis.FieldError
 }
 
-func (cs *ChannelSpec) Validate() *apis.FieldError {
-	var errs *apis.FieldError
-	if cs.Provisioner == nil {
-		errs = errs.Also(apis.ErrMissingField("provisioner"))
-	}
+// ChannelValidator is initialized by the webhook (or the host)
+var (
+	GlobalChannelValidator ChannelValidator
+)
 
-	if cs.Subscribable != nil {
-		for i, subscriber := range cs.Subscribable.Subscribers {
-			if subscriber.ReplyURI == "" && subscriber.SubscriberURI == "" {
-				fe := apis.ErrMissingField("replyURI", "subscriberURI")
-				fe.Details = "expected at least one of, got none"
-				errs = errs.Also(fe.ViaField(fmt.Sprintf("subscriber[%d]", i)).ViaField("subscribable"))
-			}
-		}
+func (c *Channel) Validate() *apis.FieldError {
+	// No validations will run if GlobalChannelValidator is not set. Should we panic is such a case?
+	if GlobalChannelValidator != nil {
+		return GlobalChannelValidator.Validate(c)
 	}
-
-	return errs
+	return nil
 }
 
 func (current *Channel) CheckImmutableFields(og apis.Immutable) *apis.FieldError {

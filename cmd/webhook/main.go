@@ -18,8 +18,10 @@ package main
 import (
 	"flag"
 	"log"
+	"time"
 
-	"github.com/knative/eventing/pkg/channeldefaulter"
+	channeldefaulter "github.com/knative/eventing/pkg/webhook/defaulters"
+	"github.com/knative/eventing/pkg/webhook/validators"
 
 	"go.uber.org/zap"
 
@@ -33,9 +35,12 @@ import (
 	"github.com/knative/eventing/pkg/logconfig"
 	"github.com/knative/pkg/system"
 
+	eventingclient "github.com/knative/eventing/pkg/client/clientset/versioned"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/cache"
 )
 
 func main() {
@@ -83,6 +88,22 @@ func main() {
 		logger.Fatalf("failed to start webhook configmap watcher: %v", err)
 	}
 
+	// Create an eventing client that will be used to create a shared informer
+	evtClient, err := eventingclient.NewForConfig(clusterConfig)
+	if err != nil {
+		logger.Fatal("Failed to get the eventing client set", zap.Error(err))
+	}
+
+	sInformer := newClusterChannelProvisionerInformer(evtClient)
+	go sInformer.Run(stopCh)
+	logger.Info("Started shared informer for clusterchannnelprovisioners")
+
+	eventingv1alpha1.GlobalChannelValidator, err = validators.NewChannelValidator(sInformer, logger.Desugar())
+	if err != nil {
+		logger.Fatalf("failed to setup Channel validator. %v", err)
+	}
+	logger.Info("Configured global channel validator")
+
 	options := webhook.ControllerOptions{
 		ServiceName:    "webhook",
 		DeploymentName: "webhook",
@@ -106,4 +127,22 @@ func main() {
 		logger.Fatal("Failed to create the admission controller", zap.Error(err))
 	}
 	controller.Run(stopCh)
+}
+
+func newClusterChannelProvisionerInformer(client *eventingclient.Clientset) cache.SharedIndexInformer {
+
+	watchlist := cache.NewListWatchFromClient(
+		client.EventingV1alpha1().RESTClient(),
+		"clusterchannelprovisioners",
+		"",
+		fields.Everything())
+
+	informer := cache.NewSharedIndexInformer(
+		watchlist,
+		&eventingv1alpha1.ClusterChannelProvisioner{},
+		time.Hour*8,
+		cache.Indexers{},
+	)
+
+	return informer
 }
