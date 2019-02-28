@@ -30,10 +30,26 @@ func (c *Channel) Validate() *apis.FieldError {
 
 func (cs *ChannelSpec) Validate() *apis.FieldError {
 	var errs *apis.FieldError
-	if cs.Provisioner == nil {
-		errs = errs.Also(apis.ErrMissingField("provisioner"))
-	}
+	errs.Also(cs.validateProvisioner())
+	errs.Also(cs.validateSubscribable())
+	return errs
+}
 
+func (cs *ChannelSpec) validateProvisioner() *apis.FieldError {
+	if cs.Provisioner == nil {
+		return apis.ErrMissingField("provisioner").ViaField("provisioner")
+	}
+	if cs.Provisioner.APIVersion != "eventing.knative.dev/v1alpha1" || cs.Provisioner.Kind != "ClusterChannelProvisioner" {
+		return (&apis.FieldError{
+			Message: "Invalid provisioner",
+			Details: "Supported provisioner must be of kind:ClusterChannelProvisioner and apiVersion:eventing.knative.dev/v1alpha1",
+		}).ViaField("provisioner")
+	}
+	return nil
+}
+
+func (cs *ChannelSpec) validateSubscribable() *apis.FieldError {
+	var errs *apis.FieldError
 	if cs.Subscribable != nil {
 		for i, subscriber := range cs.Subscribable.Subscribers {
 			if subscriber.ReplyURI == "" && subscriber.SubscriberURI == "" {
@@ -43,7 +59,6 @@ func (cs *ChannelSpec) Validate() *apis.FieldError {
 			}
 		}
 	}
-
 	return errs
 }
 

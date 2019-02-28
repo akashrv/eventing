@@ -23,7 +23,6 @@ import (
 	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -153,22 +152,9 @@ func (r *reconciler) reconcile(ctx context.Context, ccp *eventingv1alpha1.Cluste
 		return nil
 	}
 
-	svc, err := util.CreateDispatcherService(ctx, r.client, ccp)
-
-	if err != nil {
-		logger.Info("Error creating the ClusterChannelProvisioner's K8s Service", zap.Error(err))
-		r.recorder.Eventf(ccp, corev1.EventTypeWarning, k8sServiceCreateFailed, "Failed to reconcile ClusterChannelProvisioner's K8s Service: %v", err)
-		return err
-	}
-
-	// Check if this ClusterChannelProvisioner is the owner of the K8s service.
-	if !metav1.IsControlledBy(svc, ccp) {
-		logger.Warn("ClusterChannelProvisioner's K8s Service is not owned by the ClusterChannelProvisioner", zap.Any("clusterChannelProvisioner", ccp), zap.Any("service", svc))
-	}
-
 	// The name of the svc has changed since version 0.2.1. Hence, delete old dispatcher service (in-memory-channel-clusterbus)
 	// that was created previously in version 0.2.0 to ensure backwards compatibility.
-	err = r.deleteOldDispatcherService(ctx, ccp)
+	err := r.deleteOldDispatcherService(ctx, ccp)
 	if err != nil {
 		logger.Info("Error deleting the old ClusterChannelProvisioner's K8s Service", zap.Error(err))
 		r.recorder.Eventf(ccp, corev1.EventTypeWarning, k8sServiceDeleteFailed, "Failed to delete the old ClusterChannelProvisioner's K8s Service: %v", err)

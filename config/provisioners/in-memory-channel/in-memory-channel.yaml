@@ -240,3 +240,45 @@ metadata:
   namespace: knative-eventing
 data:
   multiChannelFanoutConfig: '{}'
+
+---
+
+# Create the kubernetes service for the in-memory-channel dispatcher
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    clusterChannelProvisioner: in-memory-channel
+    role: dispatcher
+  name: in-memory-channel-dispatcher
+  namespace: knative-eventing
+spec:
+  ports:
+  - name: http
+    port: 80
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    clusterChannelProvisioner: in-memory-channel
+    role: dispatcher
+
+---
+
+# Create the kubernetes service for the in-memory dispatcher
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    clusterChannelProvisioner: in-memory-channel
+    role: dispatcher
+  name: in-memory-dispatcher
+  namespace: knative-eventing
+spec:
+  ports:
+  - name: http
+    port: 80
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    clusterChannelProvisioner: in-memory
+    role: dispatcher
