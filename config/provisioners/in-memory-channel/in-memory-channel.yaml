@@ -269,7 +269,7 @@ apiVersion: v1
 kind: Service
 metadata:
   labels:
-    clusterChannelProvisioner: in-memory-channel
+    clusterChannelProvisioner: in-memory
     role: dispatcher
   name: in-memory-dispatcher
   namespace: knative-eventing

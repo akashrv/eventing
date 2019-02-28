@@ -212,3 +212,23 @@ spec:
         - name: kafka-channel-controller-config
           configMap:
             name: kafka-channel-controller-config
+---
+
+  # Kubernetes service for kafka dispatcher
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    clusterChannelProvisioner: kafka
+    role: dispatcher
+  name: kafka-dispatcher
+  namespace: knative-eventing
+spec:
+  ports:
+  - name: http
+    port: 80
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    clusterChannelProvisioner: kafka
+    role: dispatcher
