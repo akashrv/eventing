@@ -45,8 +45,10 @@ import (
 )
 
 const (
-	ccpName      = "in-memory-channel"
-	asyncCCPName = "in-memory"
+	ccpName       = "in-memory-channel"
+	ccpAPIVersion = "eventing.knative.dev/v1alpha1"
+	ccpKind       = "ClusterChannelProvisioner"
+	asyncCCPName  = "in-memory"
 
 	cNamespace = "test-namespace"
 	cName      = "test-channel"
@@ -119,7 +121,9 @@ var (
 			},
 			Spec: eventingv1alpha1.ChannelSpec{
 				Provisioner: &corev1.ObjectReference{
-					Name: ccpName,
+					Name:       ccpName,
+					APIVersion: ccpAPIVersion,
+					Kind:       ccpKind,
 				},
 				Subscribable: &eventingduck.Subscribable{
 					Subscribers: []eventingduck.ChannelSubscriberSpec{
@@ -147,7 +151,9 @@ var (
 			},
 			Spec: eventingv1alpha1.ChannelSpec{
 				Provisioner: &corev1.ObjectReference{
-					Name: "some-other-provisioner",
+					Name:       "some-other-provisioner",
+					APIVersion: ccpAPIVersion,
+					Kind:       ccpKind,
 				},
 				Subscribable: &eventingduck.Subscribable{
 					Subscribers: []eventingduck.ChannelSubscriberSpec{
@@ -168,7 +174,9 @@ var (
 			},
 			Spec: eventingv1alpha1.ChannelSpec{
 				Provisioner: &corev1.ObjectReference{
-					Name: ccpName,
+					Name:       ccpName,
+					APIVersion: ccpAPIVersion,
+					Kind:       ccpKind,
 				},
 				Subscribable: &eventingduck.Subscribable{
 					Subscribers: []eventingduck.ChannelSubscriberSpec{
@@ -248,6 +256,18 @@ func TestReconcile(t *testing.T) {
 			Name: "Channel not reconciled - name",
 			InitialState: []runtime.Object{
 				makeChannelWithWrongProvisionerName(),
+			},
+		},
+		{
+			Name: "Channel not reconciled - apiversion",
+			InitialState: []runtime.Object{
+				makeChannelWithWrongAPIVersion(),
+			},
+		},
+		{
+			Name: "Channel not reconciled - kind",
+			InitialState: []runtime.Object{
+				makeChannelWithWrongKind(),
 			},
 		},
 		{
@@ -454,7 +474,8 @@ func TestReconcile(t *testing.T) {
 			WantEvent: []corev1.Event{
 				events[channelReconciled], events[channelUpdateStatusFailed],
 			},
-		}, {
+		},
+		{
 			Name: "Channel reconcile successful - Channel list follows pagination",
 			InitialState: []runtime.Object{
 				makeChannel(),
@@ -493,7 +514,9 @@ func TestReconcile(t *testing.T) {
 						},
 						Spec: eventingv1alpha1.ChannelSpec{
 							Provisioner: &corev1.ObjectReference{
-								Name: ccpName,
+								Name:       ccpName,
+								APIVersion: ccpAPIVersion,
+								Kind:       ccpKind,
 							},
 						},
 					},
@@ -589,7 +612,9 @@ func makeChannel(pn ...string) *eventingv1alpha1.Channel {
 		},
 		Spec: eventingv1alpha1.ChannelSpec{
 			Provisioner: &corev1.ObjectReference{
-				Name: getProvisionerName(pn),
+				Name:       getProvisionerName(pn),
+				APIVersion: ccpAPIVersion,
+				Kind:       ccpKind,
 			},
 		},
 	}
@@ -635,6 +660,18 @@ func makeChannelWithWrongProvisionerNamespace() *eventingv1alpha1.Channel {
 func makeChannelWithWrongProvisionerName() *eventingv1alpha1.Channel {
 	c := makeChannel()
 	c.Spec.Provisioner.Name = "wrong-name"
+	return c
+}
+
+func makeChannelWithWrongAPIVersion() *eventingv1alpha1.Channel {
+	c := makeChannel()
+	c.Spec.Provisioner.APIVersion = "wrong-version"
+	return c
+}
+
+func makeChannelWithWrongKind() *eventingv1alpha1.Channel {
+	c := makeChannel()
+	c.Spec.Provisioner.Kind = "wrong-kind"
 	return c
 }
 
