@@ -85,6 +85,12 @@ func TestInjectClient(t *testing.T) {
 }
 
 func TestIsControlled(t *testing.T) {
+	validObj := &corev1.ObjectReference{
+		Namespace:  "",
+		Name:       Name,
+		APIVersion: "eventing.knative.dev/v1alpha1",
+		Kind:       "ClusterChannelProvisioner",
+	}
 	testCases := map[string]struct {
 		ref          *corev1.ObjectReference
 		isControlled bool
@@ -95,21 +101,39 @@ func TestIsControlled(t *testing.T) {
 		},
 		"wrong namespace": {
 			ref: &corev1.ObjectReference{
-				Namespace: "other",
-				Name:      Name,
+				Namespace:  "other",
+				Name:       validObj.Name,
+				Kind:       validObj.Kind,
+				APIVersion: validObj.APIVersion,
 			},
 			isControlled: false,
 		},
 		"wrong name": {
 			ref: &corev1.ObjectReference{
-				Name: "other-name",
+				Name:       "other-name",
+				Kind:       validObj.Kind,
+				APIVersion: validObj.APIVersion,
+			},
+			isControlled: false,
+		},
+		"wrong kind": {
+			ref: &corev1.ObjectReference{
+				Name:       validObj.Name,
+				Kind:       "kind",
+				APIVersion: validObj.APIVersion,
+			},
+			isControlled: false,
+		},
+		"wrong apiversion": {
+			ref: &corev1.ObjectReference{
+				Name:       validObj.Name,
+				Kind:       validObj.Kind,
+				APIVersion: "apiversion",
 			},
 			isControlled: false,
 		},
 		"is controlled": {
-			ref: &corev1.ObjectReference{
-				Name: Name,
-			},
+			ref:          validObj,
 			isControlled: true,
 		},
 	}
@@ -165,91 +189,6 @@ func TestReconcile(t *testing.T) {
 			InitialState: []runtime.Object{
 				makeDeletingClusterChannelProvisioner(),
 			},
-			WantEvent: []corev1.Event{
-				events[ccpReconciled],
-			},
-		},
-		{
-			Name: "Create dispatcher fails",
-			InitialState: []runtime.Object{
-				makeClusterChannelProvisioner(),
-			},
-			Mocks: controllertesting.Mocks{
-				MockGets: []controllertesting.MockGet{
-					errorGettingK8sService(),
-				},
-			},
-			WantErrMsg: testErrorMessage,
-			WantEvent: []corev1.Event{
-				events[k8sServiceCreateFailed],
-			},
-		},
-		{
-			Name: "Create dispatcher - already exists",
-			InitialState: []runtime.Object{
-				makeClusterChannelProvisioner(),
-				makeK8sService(),
-			},
-			WantPresent: []runtime.Object{
-				makeReadyClusterChannelProvisioner(),
-			},
-			WantEvent: []corev1.Event{
-				events[ccpReconciled],
-			},
-		},
-		{
-			Name: "Delete old dispatcher",
-			InitialState: []runtime.Object{
-				makeClusterChannelProvisioner(),
-				makeOldK8sService(),
-			},
-			WantPresent: []runtime.Object{
-				makeReadyClusterChannelProvisioner(),
-				makeK8sService(),
-			},
-			WantAbsent: []runtime.Object{
-				makeOldK8sService(),
-			},
-			WantEvent: []corev1.Event{
-				events[ccpReconciled],
-			},
-		},
-		{
-			Name: "Create dispatcher - not owned by CCP",
-			InitialState: []runtime.Object{
-				makeClusterChannelProvisioner(),
-				makeK8sServiceNotOwnedByClusterChannelProvisioner(),
-			},
-			WantPresent: []runtime.Object{
-				makeReadyClusterChannelProvisioner(),
-			},
-			WantEvent: []corev1.Event{
-				events[ccpReconciled],
-			},
-		},
-		{
-			Name: "Create dispatcher succeeds",
-			InitialState: []runtime.Object{
-				makeClusterChannelProvisioner(),
-			},
-			WantPresent: []runtime.Object{
-				makeReadyClusterChannelProvisioner(),
-				makeK8sService(),
-			},
-			WantEvent: []corev1.Event{
-				events[ccpReconciled],
-			},
-		},
-		{
-			Name: "Create dispatcher succeeds - request is namespace-scoped",
-			InitialState: []runtime.Object{
-				makeClusterChannelProvisioner(),
-			},
-			WantPresent: []runtime.Object{
-				makeReadyClusterChannelProvisioner(),
-				makeK8sService(),
-			},
-			ReconcileKey: fmt.Sprintf("%s/%s", testNS, Name),
 			WantEvent: []corev1.Event{
 				events[ccpReconciled],
 			},

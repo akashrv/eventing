@@ -30,14 +30,14 @@ func (c *Channel) Validate() *apis.FieldError {
 
 func (cs *ChannelSpec) Validate() *apis.FieldError {
 	var errs *apis.FieldError
-	errs.Also(cs.validateProvisioner())
-	errs.Also(cs.validateSubscribable())
+	errs = errs.Also(cs.validateProvisioner())
+	errs = errs.Also(cs.validateSubscribable())
 	return errs
 }
 
 func (cs *ChannelSpec) validateProvisioner() *apis.FieldError {
 	if cs.Provisioner == nil {
-		return apis.ErrMissingField("provisioner").ViaField("provisioner")
+		return apis.ErrMissingField("provisioner")
 	}
 	if cs.Provisioner.APIVersion != "eventing.knative.dev/v1alpha1" || cs.Provisioner.Kind != "ClusterChannelProvisioner" {
 		return (&apis.FieldError{

@@ -20,17 +20,17 @@ import (
 	"context"
 	"fmt"
 
+	eventingv1alpha1 "github.com/knative/eventing/pkg/apis/eventing/v1alpha1"
+	util "github.com/knative/eventing/pkg/provisioners"
+	"github.com/knative/pkg/system"
 	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-
-	eventingv1alpha1 "github.com/knative/eventing/pkg/apis/eventing/v1alpha1"
-	util "github.com/knative/eventing/pkg/provisioners"
-	"github.com/knative/pkg/system"
 )
 
 const (
@@ -47,6 +47,11 @@ const (
 var (
 	// provisionerNames contains the list of provisioners' names served by this controller
 	provisionerNames = []string{"in-memory-channel", "in-memory"}
+	provisionerGVK   = schema.GroupVersionKind{
+		Group:   "eventing.knative.dev",
+		Version: "v1alpha1",
+		Kind:    "ClusterChannelProvisioner",
+	}
 )
 
 type reconciler struct {
@@ -91,7 +96,7 @@ func (r *reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	}
 
 	// Does this Controller control this ClusterChannelProvisioner?
-	if !shouldReconcile(ccp.Namespace, ccp.Name) {
+	if !shouldReconcile(ccp.Namespace, ccp.Name, ccp.GroupVersionKind()) {
 		logger.Info("Not reconciling ClusterChannelProvisioner, it is not controlled by this Controller", zap.String("APIVersion", ccp.APIVersion), zap.String("Kind", ccp.Kind), zap.String("Namespace", ccp.Namespace), zap.String("name", ccp.Name))
 		return reconcile.Result{}, nil
 	}
@@ -123,17 +128,21 @@ func (r *reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 // reconcile) a given object, based on that object's ClusterChannelProvisioner reference.
 func IsControlled(ref *corev1.ObjectReference) bool {
 	if ref != nil {
-		return shouldReconcile(ref.Namespace, ref.Name)
+		return shouldReconcile(ref.Namespace, ref.Name, ref.GroupVersionKind())
 	}
 	return false
 }
 
 // shouldReconcile determines if this Controller should control (and therefore reconcile) a given
 // ClusterChannelProvisioner. This Controller only handles in-memory channels.
-func shouldReconcile(namespace, name string) bool {
-	for _, p := range provisionerNames {
-		if namespace == "" && name == p {
-			return true
+func shouldReconcile(namespace, name string, gvk schema.GroupVersionKind) bool {
+	if gvk.Group == provisionerGVK.Group &&
+		gvk.Version == provisionerGVK.Version &&
+		gvk.Kind == provisionerGVK.Kind {
+		for _, p := range provisionerNames {
+			if namespace == "" && name == p {
+				return true
+			}
 		}
 	}
 	return false

@@ -29,29 +29,61 @@ import (
 var dnsName = "example.com"
 
 func TestChannelValidation(t *testing.T) {
+	validProvisioner := &corev1.ObjectReference{
+		Name:       "in-memory",
+		APIVersion: "eventing.knative.dev/v1alpha1",
+		Kind:       "ClusterChannelProvisioner",
+	}
+
 	tests := []CRDTest{{
 		name: "valid",
 		cr: &Channel{
 			Spec: ChannelSpec{
-				Provisioner: &corev1.ObjectReference{
-					Name: "foo",
-				},
+				Provisioner: validProvisioner,
 			},
 		},
 		want: nil,
 	}, {
-		name: "empty",
+		name: "nil provisioner",
 		cr: &Channel{
 			Spec: ChannelSpec{},
 		},
 		want: apis.ErrMissingField("spec.provisioner"),
 	}, {
-		name: "subscribers array",
+		name: "invalid provisioner kind",
 		cr: &Channel{
 			Spec: ChannelSpec{
 				Provisioner: &corev1.ObjectReference{
-					Name: "foo",
+					APIVersion: validProvisioner.APIVersion,
+					Kind:       "invalid",
+					Name:       validProvisioner.Name,
 				},
+			},
+		},
+		want: (&apis.FieldError{
+			Message: "Invalid provisioner",
+			Details: "Supported provisioner must be of kind:ClusterChannelProvisioner and apiVersion:eventing.knative.dev/v1alpha1",
+		}).ViaField("spec.provisioner"),
+	}, {
+		name: "invalid provisioner apiversion",
+		cr: &Channel{
+			Spec: ChannelSpec{
+				Provisioner: &corev1.ObjectReference{
+					APIVersion: "invalid",
+					Kind:       validProvisioner.Kind,
+					Name:       validProvisioner.Name,
+				},
+			},
+		},
+		want: (&apis.FieldError{
+			Message: "Invalid provisioner",
+			Details: "Supported provisioner must be of kind:ClusterChannelProvisioner and apiVersion:eventing.knative.dev/v1alpha1",
+		}).ViaField("spec.provisioner"),
+	}, {
+		name: "subscribers array",
+		cr: &Channel{
+			Spec: ChannelSpec{
+				Provisioner: validProvisioner,
 				Subscribable: &eventingduck.Subscribable{
 					Subscribers: []eventingduck.ChannelSubscriberSpec{{
 						SubscriberURI: "subscriberendpoint",
@@ -64,9 +96,7 @@ func TestChannelValidation(t *testing.T) {
 		name: "empty subscriber at index 1",
 		cr: &Channel{
 			Spec: ChannelSpec{
-				Provisioner: &corev1.ObjectReference{
-					Name: "foo",
-				},
+				Provisioner: validProvisioner,
 				Subscribable: &eventingduck.Subscribable{
 					Subscribers: []eventingduck.ChannelSubscriberSpec{{
 						SubscriberURI: "subscriberendpoint",
@@ -83,9 +113,7 @@ func TestChannelValidation(t *testing.T) {
 		name: "2 empty subscribers",
 		cr: &Channel{
 			Spec: ChannelSpec{
-				Provisioner: &corev1.ObjectReference{
-					Name: "foo",
-				},
+				Provisioner: validProvisioner,
 				Subscribable: &eventingduck.Subscribable{
 					Subscribers: []eventingduck.ChannelSubscriberSpec{{}, {}},
 				},
