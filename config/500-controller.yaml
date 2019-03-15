@@ -34,6 +34,9 @@ spec:
           "-logtostderr",
           "-stderrthreshold", "INFO"
         ]
+        ports:
+          - containerPort: 9090
+            name: metrics
         volumeMounts:
           - name: config-logging
             mountPath: /etc/config-logging
@@ -42,6 +45,8 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
+        - name: CONFIG_LOGGING_NAME
+          value: config-logging
       volumes:
         - name: config-logging
           configMap:

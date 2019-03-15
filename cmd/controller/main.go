@@ -23,6 +23,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/knative/eventing/pkg/reconciler/v1alpha1/channel"
 	"github.com/knative/eventing/pkg/reconciler/v1alpha1/subscription"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -59,7 +60,7 @@ var (
 type SchemeFunc func(*runtime.Scheme) error
 
 // ProvideFunc adds a controller to a Manager.
-type ProvideFunc func(manager.Manager) (controller.Controller, error)
+type ProvideFunc func(manager.Manager, *zap.Logger) (controller.Controller, error)
 
 func main() {
 	flag.Parse()
@@ -93,7 +94,7 @@ func main() {
 
 	// Watch the logging config map and dynamically update logging levels.
 	configMapWatcher := configmap.NewInformedWatcher(kubeClient, system.Namespace())
-	configMapWatcher.Watch(logconfig.ConfigName, logging.UpdateLevelFromConfigMap(logger, atomicLevel, logconfig.Controller, logconfig.Controller))
+	configMapWatcher.Watch(logconfig.ConfigMapName(), logging.UpdateLevelFromConfigMap(logger, atomicLevel, logconfig.Controller, logconfig.Controller))
 	if err = configMapWatcher.Start(stopCh); err != nil {
 		logger.Fatalf("Failed to start controller config map watcher: %v", err)
 	}
@@ -119,9 +120,10 @@ func main() {
 	// manager run it.
 	providers := []ProvideFunc{
 		subscription.ProvideController,
+		channel.ProvideController,
 	}
 	for _, provider := range providers {
-		if _, err := provider(mgr); err != nil {
+		if _, err := provider(mgr, logger.Desugar()); err != nil {
 			logger.Fatalf("Error adding controller to manager: %v", err)
 		}
 	}
@@ -137,7 +139,7 @@ func main() {
 	srv := &http.Server{Addr: metricsScrapeAddr}
 	http.Handle(metricsScrapePath, promhttp.Handler())
 	go func() {
-		logger.Info("Starting metrics listener at %s", metricsScrapeAddr)
+		logger.Infof("Starting metrics listener at %s", metricsScrapeAddr)
 		if err := srv.ListenAndServe(); err != nil {
 			logger.Infof("Httpserver: ListenAndServe() finished with error: %s", err)
 		}

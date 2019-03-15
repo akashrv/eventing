@@ -46,21 +46,21 @@ const (
 	FinalizerAdded          AddFinalizerResult = true
 )
 
-// AddFinalizer adds finalizerName to the Channel.
-func AddFinalizer(c *eventingv1alpha1.Channel, finalizerName string) AddFinalizerResult {
-	finalizers := sets.NewString(c.Finalizers...)
+// AddFinalizer adds finalizerName to the Object.
+func AddFinalizer(o metav1.Object, finalizerName string) AddFinalizerResult {
+	finalizers := sets.NewString(o.GetFinalizers()...)
 	if finalizers.Has(finalizerName) {
 		return FinalizerAlreadyPresent
 	}
 	finalizers.Insert(finalizerName)
-	c.Finalizers = finalizers.List()
+	o.SetFinalizers(finalizers.List())
 	return FinalizerAdded
 }
 
-func RemoveFinalizer(c *eventingv1alpha1.Channel, finalizerName string) {
-	finalizers := sets.NewString(c.Finalizers...)
+func RemoveFinalizer(o metav1.Object, finalizerName string) {
+	finalizers := sets.NewString(o.GetFinalizers()...)
 	finalizers.Delete(finalizerName)
-	c.Finalizers = finalizers.List()
+	o.SetFinalizers(finalizers.List())
 }
 
 func CreateK8sService(ctx context.Context, client runtimeClient.Client, c *eventingv1alpha1.Channel) (*corev1.Service, error) {
@@ -76,14 +76,9 @@ func getK8sService(ctx context.Context, client runtimeClient.Client, c *eventing
 		Namespace: c.Namespace,
 		// TODO After the full release start selecting on new set of labels by using k8sServiceLabels(c)
 		LabelSelector: labels.SelectorFromSet(k8sOldServiceLabels(c)),
-		// TODO this is here because the fake client needs it. Remove this when it's no longer
-		// needed.
-		Raw: &metav1.ListOptions{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: corev1.SchemeGroupVersion.String(),
-				Kind:       "Service",
-			},
-		},
+		// Set Raw because if we need to get more than one page, then we will put the continue token
+		// into opts.Raw.Continue.
+		Raw: &metav1.ListOptions{},
 	}
 
 	err := client.List(ctx, opts, list)
@@ -134,14 +129,9 @@ func getVirtualService(ctx context.Context, client runtimeClient.Client, c *even
 		Namespace: c.Namespace,
 		// TODO After the full release start selecting on new set of labels by using virtualServiceLabels(c)
 		LabelSelector: labels.SelectorFromSet(virtualOldServiceLabels(c)),
-		// TODO this is here because the fake client needs it. Remove this when it's no longer
-		// needed.
-		Raw: &metav1.ListOptions{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: istiov1alpha3.SchemeGroupVersion.String(),
-				Kind:       "VirtualService",
-			},
-		},
+		// Set Raw because if we need to get more than one page, then we will put the continue token
+		// into opts.Raw.Continue.
+		Raw: &metav1.ListOptions{},
 	}
 
 	err := client.List(ctx, opts, list)
