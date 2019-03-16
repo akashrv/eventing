@@ -17,7 +17,7 @@ To propose a new feature,  create a new issue of type “Feature Request”
 - Please fill in as much detail as possible in the Feature template and propose a release cycle
 - All new features will be labelled “kind/feature”, and “triage/needstriage”
 - All new proposals are discussed either in WG meeting, or on slack, or dedicated meetings if needed at any point scheduled by the proposer. 
-- By R-2w’s WG meeting all new proposals should be vetted and verified that they fit the [Planning criteria](). Features that do not fit this criteria will not be considered in the current release planning cycle and hence early discussion is encouraged instead of waiting for R-2w.
+- By R-2w’s WG meeting all new proposals should be vetted and verified that they fit the [Planning criteria](#planning-criteria). Features that do not fit this criteria will not be considered in the current release planning cycle and hence early discussion is encouraged instead of waiting for R-2w.
 - All eligible proposals will then be snapshotted into the voting document and open for voting till R-1w WG meeting. In R-1w WG meeting top features based on votes will be planned for next release. 
 > We need some kind of estimates for each feature for release planning. Shall we adopt story points on fibonacci scale or t-shirt sizing? My vote goes to story points on fibonacci scale to avoid spending a lot of time on estimation, which is a common pitfall.
 - Selected features will be labeled “triage/accepted”. Rest will be labelled “triage/ice-boxed” and will be eligible for next planning cycle. Add these features to correct milestone and sprint specific project for tracking
